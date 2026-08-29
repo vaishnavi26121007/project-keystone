@@ -37,7 +37,6 @@ public class Site {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "client_id", nullable = false)
-    @JsonIgnore
     private Client client;
 
     @Builder.Default
