@@ -1,3 +1,4 @@
+
 package com.zidio.keystone.service;
 
 import com.zidio.keystone.dto.AuthResponse;
@@ -32,8 +33,11 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new IllegalStateException("Email already registered: " + request.getEmail());
+            throw new IllegalStateException(
+                    "Email already registered: " + request.getEmail()
+            );
         }
 
         User.UserBuilder builder = User.builder()
@@ -43,19 +47,45 @@ public class AuthService {
                 .phone(request.getPhone())
                 .role(request.getRole());
 
-        if (request.getRole() == Role.CLIENT && request.getClientId() != null) {
-            Client client = clientRepository.findById(request.getClientId())
-                    .orElseThrow(() -> new EntityNotFoundException("Client not found: " + request.getClientId()));
+        /*
+         * CLIENT REGISTRATION
+         *
+         * Create a new Client organization and immediately
+         * link the newly created User to it.
+         */
+        if (request.getRole() == Role.CLIENT) {
+
+            if (request.getCompanyName() == null ||
+                    request.getCompanyName().isBlank()) {
+
+                throw new IllegalStateException(
+                        "Company name is required for CLIENT accounts"
+                );
+            }
+
+            Client client = Client.builder()
+                    .companyName(request.getCompanyName().trim())
+                    .contactEmail(request.getEmail())
+                    .contactPhone(request.getPhone())
+                    .build();
+
+            client = clientRepository.save(client);
+
             builder.client(client);
         }
 
         User user = userRepository.save(builder.build());
 
+        /*
+         * TECHNICIAN REGISTRATION
+         */
         if (request.getRole() == Role.TECHNICIAN) {
+
             Technician technician = Technician.builder()
                     .user(user)
                     .specialization(request.getSpecialization())
                     .build();
+
             technicianRepository.save(technician);
         }
 
@@ -63,29 +93,37 @@ public class AuthService {
     }
 
     public AuthResponse login(LoginRequest request) {
+
         authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(
+                        request.getEmail(),
+                        request.getPassword()
+                )
         );
 
         User user = userRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new EntityNotFoundException("User not found"));
+                .orElseThrow(() ->
+                        new EntityNotFoundException("User not found")
+                );
 
         return buildAuthResponse(user);
     }
 
     private AuthResponse buildAuthResponse(User user) {
+
         Map<String, Object> claims = new HashMap<>();
+
         claims.put("role", user.getRole().name());
         claims.put("userId", user.getId());
 
         org.springframework.security.core.userdetails.UserDetails principal =
-        org.springframework.security.core.userdetails.User.builder()
-                .username(user.getEmail())
-                .password(user.getPassword())
-                .authorities("ROLE_" + user.getRole().name())
-                .build();
+                org.springframework.security.core.userdetails.User.builder()
+                        .username(user.getEmail())
+                        .password(user.getPassword())
+                        .authorities("ROLE_" + user.getRole().name())
+                        .build();
 
-String token = jwtService.generateToken(principal, claims);
+        String token = jwtService.generateToken(principal, claims);
 
         return AuthResponse.builder()
                 .token(token)
@@ -96,3 +134,4 @@ String token = jwtService.generateToken(principal, claims);
                 .build();
     }
 }
+

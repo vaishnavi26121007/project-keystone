@@ -17,7 +17,8 @@ import java.util.stream.Collectors;
 
 /**
  * Core business logic for the work-order lifecycle:
- * NEW -> ASSIGNED -> IN_PROGRESS -> (ON_HOLD <-> IN_PROGRESS) -> COMPLETED -> CLOSED
+ * NEW -> ASSIGNED -> IN_PROGRESS -> (ON_HOLD <-> IN_PROGRESS) -> COMPLETED ->
+ * CLOSED
  * Any non-terminal state may transition to CANCELLED.
  */
 @Service
@@ -41,7 +42,8 @@ public class WorkOrderService {
                 .orElseThrow(() -> new EntityNotFoundException("User not found"));
 
         // Resolve which client this work order belongs to:
-        // - CLIENT-role users always get their own linked organization (request.clientId is ignored/optional)
+        // - CLIENT-role users always get their own linked organization
+        // (request.clientId is ignored/optional)
         // - ADMIN/DISPATCHER must supply clientId explicitly
         Long resolvedClientId;
         if (creator.getRole() == Role.CLIENT) {
@@ -122,7 +124,10 @@ public class WorkOrderService {
         LocalDateTime now = LocalDateTime.now();
 
         switch (target) {
-            case IN_PROGRESS -> { if (wo.getStartedAt() == null) wo.setStartedAt(now); }
+            case IN_PROGRESS -> {
+                if (wo.getStartedAt() == null)
+                    wo.setStartedAt(now);
+            }
             case COMPLETED -> {
                 wo.setCompletedAt(now);
                 if (wo.getAssignedTechnician() != null) {
@@ -137,7 +142,8 @@ public class WorkOrderService {
                     technicianRepository.save(wo.getAssignedTechnician());
                 }
             }
-            default -> { /* no side effect */ }
+            default -> {
+                /* no side effect */ }
         }
 
         if (now.isAfter(wo.getSlaDueAt()) && target != WorkOrderStatus.CANCELLED) {
@@ -162,11 +168,13 @@ public class WorkOrderService {
     }
 
     private void validateTransition(WorkOrderStatus from, WorkOrderStatus to) {
-        if (from == to) return;
+        if (from == to)
+            return;
         boolean valid = switch (from) {
             case NEW -> to == WorkOrderStatus.ASSIGNED || to == WorkOrderStatus.CANCELLED;
             case ASSIGNED -> to == WorkOrderStatus.IN_PROGRESS || to == WorkOrderStatus.CANCELLED;
-            case IN_PROGRESS -> to == WorkOrderStatus.ON_HOLD || to == WorkOrderStatus.COMPLETED || to == WorkOrderStatus.CANCELLED;
+            case IN_PROGRESS ->
+                to == WorkOrderStatus.ON_HOLD || to == WorkOrderStatus.COMPLETED || to == WorkOrderStatus.CANCELLED;
             case ON_HOLD -> to == WorkOrderStatus.IN_PROGRESS || to == WorkOrderStatus.CANCELLED;
             case COMPLETED -> to == WorkOrderStatus.CLOSED;
             case CLOSED, CANCELLED -> false;
@@ -320,8 +328,10 @@ public class WorkOrderService {
     }
 
     /**
-     * Same as getByClient, but if the requester is a CLIENT-role user, enforces that
-     * they can only fetch their own organization's work orders (prevents a client from
+     * Same as getByClient, but if the requester is a CLIENT-role user, enforces
+     * that
+     * they can only fetch their own organization's work orders (prevents a client
+     * from
      * reading another company's data by guessing IDs).
      */
     public List<WorkOrderResponse> getByClientForUser(Long clientId, String requesterEmail) {
@@ -337,16 +347,23 @@ public class WorkOrderService {
     }
 
     public List<WorkOrderResponse> getByTechnician(Long technicianId) {
-        return workOrderRepository.findByAssignedTechnicianId(technicianId).stream().map(this::toResponse).collect(Collectors.toList());
+        return workOrderRepository.findByAssignedTechnicianId(technicianId).stream().map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     public List<WorkOrderResponse> getOverdue() {
-        return workOrderRepository.findOverdue(LocalDateTime.now()).stream().map(this::toResponse).collect(Collectors.toList());
+        return workOrderRepository.findOverdue(LocalDateTime.now()).stream().map(this::toResponse)
+                .collect(Collectors.toList());
     }
 
     private WorkOrder getOrThrow(Long id) {
-        return workOrderRepository.findById(id)
-                .orElseThrow(() -> new EntityNotFoundException("Work order not found: " + id));
+        WorkOrder workOrder = workOrderRepository.findByIdWithDetails(id);
+
+        if (workOrder == null) {
+            throw new EntityNotFoundException("Work order not found: " + id);
+        }
+
+        return workOrder;
     }
 
     private String generateTicketNumber() {
@@ -364,7 +381,8 @@ public class WorkOrderService {
                 .clientName(wo.getClient() != null ? wo.getClient().getCompanyName() : null)
                 .siteName(wo.getSite() != null ? wo.getSite().getName() : null)
                 .assetName(wo.getAsset() != null ? wo.getAsset().getName() : null)
-                .technicianName(wo.getAssignedTechnician() != null ? wo.getAssignedTechnician().getUser().getFullName() : null)
+                .technicianName(
+                        wo.getAssignedTechnician() != null ? wo.getAssignedTechnician().getUser().getFullName() : null)
                 .status(wo.getStatus())
                 .priority(wo.getPriority())
                 .createdAt(wo.getCreatedAt())
