@@ -1,5 +1,7 @@
 package com.zidio.keystone.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -17,13 +19,13 @@ public class Asset {
     private Long id;
 
     @Column(nullable = false)
-    private String name; // e.g. "Rooftop HVAC Unit 3"
+    private String name;
 
     @Column
-    private String assetTag; // internal asset code
+    private String assetTag;
 
     @Column
-    private String category; // HVAC, Electrical, Plumbing, Elevator, Fire Safety, etc.
+    private String category;
 
     @Column
     private String manufacturer;
@@ -36,5 +38,6 @@ public class Asset {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "site_id", nullable = false)
+    @JsonIgnore
     private Site site;
 }

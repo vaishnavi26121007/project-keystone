@@ -10,11 +10,32 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 public interface WorkOrderRepository extends JpaRepository<WorkOrder, Long> {
+
     List<WorkOrder> findByClientId(Long clientId);
+
     List<WorkOrder> findByAssignedTechnicianId(Long technicianId);
+
     List<WorkOrder> findByStatus(WorkOrderStatus status);
 
-    @Query("SELECT w FROM WorkOrder w WHERE w.status NOT IN ('CLOSED','CANCELLED','COMPLETED') AND w.slaDueAt < :now")
+    @Query("""
+        SELECT DISTINCT w
+        FROM WorkOrder w
+        LEFT JOIN FETCH w.client
+        LEFT JOIN FETCH w.site
+        LEFT JOIN FETCH w.asset
+        LEFT JOIN FETCH w.assignedTechnician t
+        LEFT JOIN FETCH t.user
+        LEFT JOIN FETCH w.createdBy
+        WHERE w.id = :id
+    """)
+    WorkOrder findByIdWithDetails(@Param("id") Long id);
+
+    @Query("""
+        SELECT w
+        FROM WorkOrder w
+        WHERE w.status NOT IN ('CLOSED','CANCELLED','COMPLETED')
+        AND w.slaDueAt < :now
+    """)
     List<WorkOrder> findOverdue(@Param("now") LocalDateTime now);
 
     long countByStatus(WorkOrderStatus status);
