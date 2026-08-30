@@ -3,7 +3,7 @@ import axios from "axios";
 // Central Axios instance. Base URL is read from the environment only —
 // never hardcode the backend URL anywhere else in the app.
 const api = axios.create({
-  baseURL: "http://localhost:8084/api",
+  baseURL: "https://project-keystone-o9rh.onrender.com/api",
 });
 
 // Attach the JWT (if we have one) to every outgoing request.
